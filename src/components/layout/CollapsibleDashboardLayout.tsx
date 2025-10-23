@@ -50,16 +50,9 @@ export function CollapsibleDashboardLayout({ children }: { children: React.React
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
     setMounted(true)
-    const savedTheme = localStorage.getItem('theme')
-    const isDarkMode = savedTheme === 'dark' || 
-      (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    // Read from document class list (already set by root layout script)
+    const isDarkMode = document.documentElement.classList.contains('dark')
     setIsDark(isDarkMode)
-    
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
   }, [])
 
   // Update dark mode when state changes
@@ -114,7 +107,7 @@ export function CollapsibleDashboardLayout({ children }: { children: React.React
   }
 
   return (
-    <div className={`flex min-h-screen w-full ${isDark ? 'dark' : ''}`}>
+    <div className="flex min-h-screen w-full">
       <div className="flex w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         {/* Sidebar */}
         <nav
