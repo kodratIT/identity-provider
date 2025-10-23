@@ -17,6 +17,7 @@ import {
   FileText,
   Key,
   Monitor,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -45,6 +46,10 @@ const navigation: NavItem[] = [
   { title: 'Audit Logs', href: '/audit-logs', icon: FileText },
   { title: 'Profile', href: '/profile', icon: User },
   { title: 'Settings', href: '/settings', icon: Settings },
+]
+
+const superAdminNavigation: NavItem[] = [
+  { title: 'Super Admin', href: '/admin', icon: ShieldCheck },
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -136,6 +141,34 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          {/* Super Admin Section */}
+          {activeTenant?.role_name === 'super_admin' && (
+            <>
+              {superAdminNavigation.map((item) => {
+                const isActive = pathname === item.href
+                const Icon = item.icon
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-red-50 text-red-700'
+                        : 'text-red-700 hover:bg-red-50 border border-red-200'
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.title}
+                  </Link>
+                )
+              })}
+              <div className="border-b my-2" />
+            </>
+          )}
+
+          {/* Regular Navigation */}
           {navigation.map((item) => {
             const isActive = pathname === item.href
             const Icon = item.icon
