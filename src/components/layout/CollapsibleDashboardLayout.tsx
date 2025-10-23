@@ -42,17 +42,38 @@ interface NavItem {
 export function CollapsibleDashboardLayout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false);
   const [open, setOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname()
   const router = useRouter()
   const { profile, activeTenant, tenants, switchTenant } = useUser()
 
+  // Initialize dark mode from localStorage on mount
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
+    setMounted(true)
+    const savedTheme = localStorage.getItem('theme')
+    const isDarkMode = savedTheme === 'dark' || 
+      (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    setIsDark(isDarkMode)
+    
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove('dark')
     }
-  }, [isDark]);
+  }, [])
+
+  // Update dark mode when state changes
+  useEffect(() => {
+    if (!mounted) return
+    
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }, [isDark, mounted]);
 
   const isSuperAdmin = activeTenant?.role_name === 'super_admin'
 
@@ -85,6 +106,11 @@ export function CollapsibleDashboardLayout({ children }: { children: React.React
     } catch (error) {
       console.error('Logout error:', error)
     }
+  }
+
+  // Prevent flash of unstyled content
+  if (!mounted) {
+    return null
   }
 
   return (
