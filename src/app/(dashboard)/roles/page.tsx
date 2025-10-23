@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,121 +12,54 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Shield, Plus, Users, Lock, MoreHorizontal } from 'lucide-react'
-import { useUser } from '@/hooks/useUser'
-
-interface Role {
-  id: string
-  name: string
-  display_name: string
-  description: string | null
-  priority: number
-  is_system: boolean
-  user_count?: number
-}
-
-interface Permission {
-  id: string
-  name: string
-  resource: string
-  action: string
-  description: string | null
-}
+import { Shield, Users, Lock, MoreHorizontal, Loader2, AlertCircle, Settings } from 'lucide-react'
+import { useRoles } from '@/hooks/useRoles'
+import { CreateRoleDialog } from '@/components/rbac/CreateRoleDialog'
+import { PermissionMatrix } from '@/components/rbac/PermissionMatrix'
+import { PermissionGate } from '@/components/rbac/PermissionGate'
 
 export default function RolesPage() {
-  const [roles, setRoles] = useState<Role[]>([])
-  const [permissions, setPermissions] = useState<Permission[]>([])
-  const [loading, setLoading] = useState(true)
-  const { activeTenant } = useUser()
-  const supabase = createClient()
+  const { roles, loading, deleteRole } = useRoles()
+  const [selectedRole, setSelectedRole] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!activeTenant) return
+  const handleDeleteRole = async (roleId: string) => {
+    if (!confirm('Are you sure you want to delete this role? Users with this role will need to be reassigned.')) return
 
-    async function loadRolesAndPermissions() {
-      try {
-        // Load roles for this tenant
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('roles')
-          .select('*')
-          .eq('tenant_id', activeTenant!.tenant_id)
-          .order('priority', { ascending: false })
-
-        if (rolesError) throw rolesError
-
-        // Get user counts for each role
-        const rolesWithCounts = await Promise.all(
-          (rolesData || []).map(async (role) => {
-            const { count } = await supabase
-              .from('user_tenants')
-              .select('*', { count: 'exact', head: true })
-              .eq('role_id', role.id)
-              .eq('is_active', true)
-
-            return {
-              ...role,
-              user_count: count || 0,
-            }
-          })
-        )
-
-        setRoles(rolesWithCounts)
-
-        // Load all permissions
-        const { data: permData, error: permError } = await supabase
-          .from('permissions')
-          .select('*')
-          .order('resource', { ascending: true })
-
-        if (permError) throw permError
-
-        setPermissions(permData || [])
-      } catch (error) {
-        console.error('Error loading roles:', error)
-      } finally {
-        setLoading(false)
+    setDeleting(roleId)
+    try {
+      await deleteRole(roleId)
+      if (selectedRole === roleId) {
+        setSelectedRole(null)
       }
+    } catch (error: any) {
+      alert(error.message || 'Failed to delete role')
+    } finally {
+      setDeleting(null)
     }
+  }
 
-    loadRolesAndPermissions()
-  }, [activeTenant, supabase])
-
-  if (!activeTenant) {
+  if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <Shield className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium">No Tenant Selected</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Please select a tenant to view roles.
-          </p>
-        </div>
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
       </div>
     )
   }
 
-  // Group permissions by resource
-  const permissionsByResource = permissions.reduce((acc, perm) => {
-    if (!acc[perm.resource]) {
-      acc[perm.resource] = []
-    }
-    acc[perm.resource].push(perm)
-    return acc
-  }, {} as Record<string, Permission[]>)
+  const selectedRoleData = roles.find((r) => r.id === selectedRole)
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Roles & Permissions</h1>
-          <p className="text-gray-500">
-            Manage access control for {activeTenant.tenant_name}
-          </p>
+          <p className="text-gray-500">Manage roles and their permissions</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Role
-        </Button>
+        <PermissionGate permissions="roles.create">
+          <CreateRoleDialog />
+        </PermissionGate>
       </div>
 
       {/* Stats Cards */}
@@ -139,7 +71,7 @@ export default function RolesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{roles.length}</div>
-            <p className="text-xs text-gray-500">in this tenant</p>
+            <p className="text-xs text-gray-500">across your organization</p>
           </CardContent>
         </Card>
 
@@ -150,147 +82,153 @@ export default function RolesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {roles.filter(r => r.is_system).length}
+              {roles.filter((r) => r.is_system).length}
             </div>
-            <p className="text-xs text-gray-500">built-in roles</p>
+            <p className="text-xs text-gray-500">protected roles</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Permissions</CardTitle>
-            <Shield className="h-4 w-4 text-gray-500" />
+            <CardTitle className="text-sm font-medium">Custom Roles</CardTitle>
+            <Users className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{permissions.length}</div>
-            <p className="text-xs text-gray-500">system-wide</p>
+            <div className="text-2xl font-bold">
+              {roles.filter((r) => !r.is_system).length}
+            </div>
+            <p className="text-xs text-gray-500">customizable</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Roles List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Roles in {activeTenant.tenant_name}</CardTitle>
-          <CardDescription>
-            Manage roles and their permissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <p className="text-gray-500">Loading roles...</p>
-            </div>
-          ) : roles.length === 0 ? (
-            <div className="flex h-32 items-center justify-center">
-              <div className="text-center">
-                <Shield className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium">No roles found</h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  Create your first role to get started
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Roles</CardTitle>
+            <CardDescription>Select a role to manage its permissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
               {roles.map((role) => (
-                <div
+                <button
                   key={role.id}
-                  className="flex items-center justify-between rounded-lg border p-4 hover:bg-gray-50"
+                  onClick={() => setSelectedRole(role.id)}
+                  className={`w-full text-left rounded-lg border p-4 transition-colors ${
+                    selectedRole === role.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-                      <Shield className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-medium">{role.display_name}</h3>
                         {role.is_system && (
-                          <Badge variant="secondary">System</Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            System
+                          </Badge>
                         )}
-                        <Badge variant="outline">
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{role.name}</p>
+                      {role.description && (
+                        <p className="text-sm text-gray-600 mt-1">{role.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <Users className="mr-1 h-3 w-3" />
+                          {role.user_count || 0} users
+                        </div>
+                        <div className="flex items-center text-xs text-gray-500">
+                          <Lock className="mr-1 h-3 w-3" />
+                          {role.role_permissions?.length || 0} permissions
+                        </div>
+                        <div className="flex items-center text-xs text-gray-500">
                           Priority: {role.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {role.description || 'No description'}
-                      </p>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                        <Users className="h-3 w-3" />
-                        <span>{role.user_count || 0} users</span>
-                      </div>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit Role</DropdownMenuItem>
-                      <DropdownMenuItem>Manage Permissions</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-red-600"
-                        disabled={role.is_system}
-                      >
-                        Delete Role
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Permissions Matrix */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Permissions</CardTitle>
-          <CardDescription>
-            Available permissions across the system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <p className="text-gray-500">Loading permissions...</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(permissionsByResource).map(([resource, perms]) => (
-                <div key={resource}>
-                  <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">
-                    {resource}
-                  </h3>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {perms.map((perm) => (
-                      <div
-                        key={perm.id}
-                        className="flex items-center gap-2 rounded-md border p-3"
-                      >
-                        <Lock className="h-4 w-4 text-gray-400" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{perm.action}</p>
-                          <p className="text-xs text-gray-500">
-                            {perm.description || perm.name}
-                          </p>
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {!role.is_system && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedRole(role.id)
+                            }}
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            Manage Permissions
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            disabled={deleting === role.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteRole(role.id)
+                            }}
+                          >
+                            {deleting === role.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="mr-2 h-4 w-4" />
+                                Delete Role
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
-                </div>
+                </button>
               ))}
+
+              {roles.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Shield className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium">No roles found</h3>
+                  <p className="mt-2 text-sm">Create your first custom role</p>
+                </div>
+              )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Permission Matrix */}
+        <div>
+          {selectedRoleData ? (
+            <PermissionMatrix
+              roleId={selectedRoleData.id}
+              roleName={selectedRoleData.display_name}
+              isSystem={selectedRoleData.is_system}
+            />
+          ) : (
+            <Card>
+              <CardContent className="flex h-full min-h-[400px] items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <Lock className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium">No role selected</h3>
+                  <p className="mt-2 text-sm">Select a role to manage its permissions</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

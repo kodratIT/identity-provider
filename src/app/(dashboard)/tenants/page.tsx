@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +23,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, MoreHorizontal, Plus, Search } from 'lucide-react'
+import { Building2, MoreHorizontal, Search } from 'lucide-react'
+import { CreateTenantDialog } from '@/components/tenant/CreateTenantDialog'
 
 interface Tenant {
   id: string
@@ -36,13 +38,13 @@ interface Tenant {
 }
 
 export default function TenantsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  useEffect(() => {
-    async function loadTenants() {
+  async function loadTenants() {
       try {
         const { data, error } = await supabase
           .from('tenants')
@@ -75,6 +77,7 @@ export default function TenantsPage() {
       }
     }
 
+  useEffect(() => {
     loadTenants()
   }, [supabase])
 
@@ -93,10 +96,7 @@ export default function TenantsPage() {
             Manage schools and organizations
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Tenant
-        </Button>
+        <CreateTenantDialog onSuccess={() => loadTenants()} />
       </div>
 
       {/* Stats Cards */}
@@ -230,10 +230,22 @@ export default function TenantsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Tenant</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+                            >
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+                            >
+                              Edit Tenant
+                            </DropdownMenuItem>
                             <DropdownMenuItem>Manage Users</DropdownMenuItem>
-                            <DropdownMenuItem>View Settings</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+                            >
+                              View Settings
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-red-600">
                               Deactivate Tenant

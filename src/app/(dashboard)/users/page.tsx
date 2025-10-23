@@ -23,8 +23,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { MoreHorizontal, Search, UserPlus, Mail, Shield } from 'lucide-react'
+import { MoreHorizontal, Search, UserPlus, Mail, Shield, UserX, UserCog } from 'lucide-react'
 import { useUser } from '@/hooks/useUser'
+import { InviteUserDialog } from '@/components/users/InviteUserDialog'
+import { PermissionGate } from '@/components/rbac/PermissionGate'
 
 interface UserData {
   id: string
@@ -124,10 +126,9 @@ export default function UsersPage() {
             Manage users in {activeTenant.tenant_name}
           </p>
         </div>
-        <Button>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <PermissionGate permissions="users.invite">
+          <InviteUserDialog onSuccess={() => loadUsers()} />
+        </PermissionGate>
       </div>
 
       {/* Stats Cards */}
