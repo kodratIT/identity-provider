@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       tenant_id: userTenant.tenant_id,
       ip_address: getClientIP(request.headers),
-      user_agent: request.headers.get('user-agent'),
+      user_agent: request.headers.get('user-agent') || undefined,
       remember_me: remember_me || false,
     })
 

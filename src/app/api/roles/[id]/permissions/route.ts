@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/rbac/permissions'
 
 // POST /api/roles/[id]/permissions - Assign permissions to a role
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -31,7 +32,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const { data: role } = await supabase
       .from('roles')
       .select('tenant_id, is_system')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (!role) {
@@ -53,12 +54,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     // Delete existing permissions for this role
-    await supabase.from('role_permissions').delete().eq('role_id', params.id)
+    await supabase.from('role_permissions').delete().eq('role_id', id)
 
     // Insert new permissions
     if (permission_ids.length > 0) {
       const rolePermissions = permission_ids.map((permissionId: string) => ({
-        role_id: params.id,
+        role_id: id,
         permission_id: permissionId,
       }))
 
@@ -80,7 +81,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
 }
 
 // DELETE /api/roles/[id]/permissions - Remove all permissions from a role
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -98,7 +100,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const { data: role } = await supabase
       .from('roles')
       .select('tenant_id, is_system')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (!role) {
@@ -120,7 +122,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
 
     // Delete all permissions for this role
-    const { error } = await supabase.from('role_permissions').delete().eq('role_id', params.id)
+    const { error } = await supabase.from('role_permissions').delete().eq('role_id', id)
 
     if (error) throw error
 

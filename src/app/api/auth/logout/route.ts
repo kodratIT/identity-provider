@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
         await logSessionActivity({
           sso_session_id: session.id,
           activity_type: 'logout',
-          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || null,
-          user_agent: request.headers.get('user-agent'),
+          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || undefined,
+          user_agent: request.headers.get('user-agent') || undefined,
         })
       }
     }
@@ -108,8 +108,8 @@ export async function GET(request: NextRequest) {
         await logSessionActivity({
           sso_session_id: session.id,
           activity_type: 'logout',
-          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || null,
-          user_agent: request.headers.get('user-agent'),
+          ip_address: request.headers.get('x-forwarded-for')?.split(',')[0] || undefined,
+          user_agent: request.headers.get('user-agent') || undefined,
         })
 
         // Notify apps

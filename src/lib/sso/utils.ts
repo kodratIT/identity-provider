@@ -124,7 +124,7 @@ export function isSessionIdle(
 }
 
 // Get client IP from request headers (handles proxies)
-export function getClientIP(headers: Headers): string | null {
+export function getClientIP(headers: Headers): string | undefined {
   // Check various proxy headers
   const forwardedFor = headers.get('x-forwarded-for')
   if (forwardedFor) {
@@ -137,7 +137,7 @@ export function getClientIP(headers: Headers): string | null {
   }
 
   // Fallback (less reliable)
-  return headers.get('remote-addr') || null
+  return headers.get('remote-addr') || undefined
 }
 
 // Extract device fingerprint for additional security

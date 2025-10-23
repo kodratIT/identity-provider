@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       payload = await verifyToken(token)
     } catch (error) {
       return NextResponse.json(
-        createOAuthError('invalid_token', 'Invalid or expired access token'),
+        createOAuthError('invalid_grant', 'Invalid or expired access token'),
         { 
           status: 401,
           headers: {
@@ -45,29 +45,38 @@ export async function GET(request: NextRequest) {
     // Get user info with tenant context
     const userInfo = await getUserInfoWithTenant(payload.sub, payload.tenant_id)
 
+    if (!userInfo.user) {
+      return NextResponse.json(
+        createOAuthError('invalid_grant', 'User not found'),
+        { status: 404 }
+      )
+    }
+
     // Build UserInfo response based on requested scopes
     const scopes = payload.scope.split(' ')
     const response: UserInfoResponse = {
       sub: userInfo.user.id,
-      email: userInfo.user.email!,
+      email: userInfo.user.email || '',
       email_verified: userInfo.user.email_confirmed_at ? true : false,
     }
 
     // Add profile info if 'profile' scope is granted
-    if (scopes.includes('profile')) {
+    if (scopes.includes('profile') && userInfo.profile) {
       response.name = userInfo.profile.full_name || undefined
       response.picture = userInfo.profile.avatar_url || undefined
       response.updated_at = userInfo.profile.updated_at
     }
 
     // Add phone if 'phone' scope is granted
-    if (scopes.includes('phone')) {
-      response.phone_number = userInfo.profile.phone || undefined
+    if (scopes.includes('phone') && userInfo.profile?.phone) {
+      response.phone_number = userInfo.profile.phone
     }
 
     // Add custom tenant and role information
-    response.tenant_id = userInfo.tenant.id
-    response.tenant_name = userInfo.tenant.name
+    if (userInfo.tenant) {
+      response.tenant_id = userInfo.tenant.id
+      response.tenant_name = userInfo.tenant.name
+    }
     response.role = userInfo.role?.name
 
     // Add permissions if available

@@ -1,5 +1,5 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { CollapsibleDashboardLayout } from '@/components/layout/CollapsibleDashboardLayout'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>
+  return <CollapsibleDashboardLayout>{children}</CollapsibleDashboardLayout>
 }

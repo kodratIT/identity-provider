@@ -123,7 +123,8 @@ export async function getUserRole(userId: string, tenantId: string) {
 
     if (error) throw error
 
-    return data?.roles || null
+    const roles = data?.roles as any
+    return Array.isArray(roles) ? roles[0] : roles
   } catch (error) {
     console.error('Error getting user role:', error)
     return null

@@ -9,8 +9,9 @@ import {
 // GET /api/oauth/clients/:clientId - Get client details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
+  const { clientId } = await params
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -25,19 +26,20 @@ export async function GET(
     // Check if user is admin
     const { data: userTenant } = await supabase
       .from('user_tenants')
-      .select('role:roles(name)')
+      .select('role_id, roles(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
-    if (!userTenant || !['super_admin', 'admin'].includes(userTenant.role?.name)) {
+    const roleName = (userTenant?.roles as any)?.[0]?.name || (userTenant?.roles as any)?.name
+    if (!userTenant || !['super_admin', 'admin'].includes(roleName)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
     }
 
-    const client = await getOAuthClient(params.clientId)
+    const client = await getOAuthClient(clientId)
     
     if (!client) {
       return NextResponse.json(
@@ -97,8 +99,9 @@ export async function GET(
 // PUT /api/oauth/clients/:clientId - Update client
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
+  const { clientId } = await params
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -113,12 +116,13 @@ export async function PUT(
     // Check if user is admin
     const { data: userTenant } = await supabase
       .from('user_tenants')
-      .select('role:roles(name)')
+      .select('role_id, roles(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
-    if (!userTenant || !['super_admin', 'admin'].includes(userTenant.role?.name)) {
+    const roleName = (userTenant?.roles as any)?.[0]?.name || (userTenant?.roles as any)?.name
+    if (!userTenant || !['super_admin', 'admin'].includes(roleName)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -134,7 +138,7 @@ export async function PUT(
       ...updateData
     } = body
 
-    const updatedClient = await updateOAuthClient(params.clientId, updateData)
+    const updatedClient = await updateOAuthClient(clientId, updateData)
 
     return NextResponse.json({
       client: {
@@ -155,8 +159,9 @@ export async function PUT(
 // DELETE /api/oauth/clients/:clientId - Delete client
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
+  const { clientId } = await params
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -171,19 +176,20 @@ export async function DELETE(
     // Check if user is super admin (only super admins can delete)
     const { data: userTenant } = await supabase
       .from('user_tenants')
-      .select('role:roles(name)')
+      .select('role_id, roles(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
-    if (!userTenant || userTenant.role?.name !== 'super_admin') {
+    const roleName = (userTenant?.roles as any)?.[0]?.name || (userTenant?.roles as any)?.name
+    if (!userTenant || roleName !== 'super_admin') {
       return NextResponse.json(
         { error: 'Insufficient permissions. Only super admins can delete clients.' },
         { status: 403 }
       )
     }
 
-    await deleteOAuthClient(params.clientId)
+    await deleteOAuthClient(clientId)
 
     return NextResponse.json({ success: true })
     

@@ -45,57 +45,57 @@ export default function UsersPage() {
   const { activeTenant } = useUser()
   const supabase = createClient()
 
-  useEffect(() => {
+  const loadUsers = async () => {
     if (!activeTenant) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_tenants')
+        .select(`
+          user_id,
+          is_active,
+          joined_at,
+          profiles (
+            id,
+            full_name,
+            avatar_url
+          ),
+          roles (
+            name
+          )
+        `)
+        .eq('tenant_id', activeTenant!.tenant_id)
 
-    async function loadUsers() {
-      try {
-        const { data, error } = await supabase
-          .from('user_tenants')
-          .select(`
-            user_id,
-            is_active,
-            joined_at,
-            profiles (
-              id,
-              full_name,
-              avatar_url
-            ),
-            roles (
-              name
-            )
-          `)
-          .eq('tenant_id', activeTenant!.tenant_id)
+      if (error) throw error
 
-        if (error) throw error
+      // Get emails from auth.users metadata
+      const userIds = data?.map((ut: any) => ut.user_id) || []
+      const { data: authUsers } = await supabase.auth.admin.listUsers()
 
-        // Get emails from auth.users metadata
-        const userIds = data?.map((ut: any) => ut.user_id) || []
-        const { data: authUsers } = await supabase.auth.admin.listUsers()
+      const formattedUsers: UserData[] = (data || []).map((ut: any) => {
+        const authUser = authUsers?.users?.find((u: any) => u.id === ut.user_id)
+        return {
+          id: ut.user_id,
+          email: authUser?.email || 'N/A',
+          full_name: ut.profiles?.full_name || 'N/A',
+          avatar_url: ut.profiles?.avatar_url || null,
+          role_name: ut.roles?.name || 'No Role',
+          is_active: ut.is_active,
+          joined_at: ut.joined_at,
+        }
+      })
 
-        const formattedUsers: UserData[] = (data || []).map((ut: any) => {
-          const authUser = authUsers?.users?.find((u: any) => u.id === ut.user_id)
-          return {
-            id: ut.user_id,
-            email: authUser?.email || 'N/A',
-            full_name: ut.profiles?.full_name || 'N/A',
-            avatar_url: ut.profiles?.avatar_url || null,
-            role_name: ut.roles?.name || 'No Role',
-            is_active: ut.is_active,
-            joined_at: ut.joined_at,
-          }
-        })
-
-        setUsers(formattedUsers)
-      } catch (error) {
-        console.error('Error loading users:', error)
-      } finally {
-        setLoading(false)
-      }
+      setUsers(formattedUsers)
+    } catch (error) {
+      console.error('Error loading users:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadUsers()
-  }, [activeTenant, supabase])
+  }, [activeTenant])
 
   const filteredUsers = users.filter(user =>
     user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const { data: userTenant } = await supabase
       .from('user_tenants')
-      .select('role:roles(name)')
+      .select('role_id, roles(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
-    if (!userTenant || !['super_admin', 'admin'].includes(userTenant.role?.name)) {
+    const roleName = (userTenant?.roles as any)?.[0]?.name || (userTenant?.roles as any)?.name
+    if (!userTenant || !['super_admin', 'admin'].includes(roleName)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -118,12 +119,13 @@ export async function POST(request: NextRequest) {
     // Check if user is admin
     const { data: userTenant } = await supabase
       .from('user_tenants')
-      .select('role:roles(name)')
+      .select('role_id, roles(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .single()
 
-    if (!userTenant || !['super_admin', 'admin'].includes(userTenant.role?.name)) {
+    const roleName = (userTenant?.roles as any)?.[0]?.name || (userTenant?.roles as any)?.name
+    if (!userTenant || !['super_admin', 'admin'].includes(roleName)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

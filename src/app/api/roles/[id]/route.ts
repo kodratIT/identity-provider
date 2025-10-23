@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/rbac/permissions'
 
 // GET /api/roles/[id] - Get a specific role
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -34,7 +35,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         )
       `
       )
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) throw error
@@ -64,7 +65,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // PUT /api/roles/[id] - Update a role
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -82,7 +84,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data: existingRole } = await supabase
       .from('roles')
       .select('tenant_id, is_system')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (!existingRole) {
@@ -115,7 +117,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         priority: priority !== undefined ? priority : undefined,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -135,7 +137,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/roles/[id] - Delete a role
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -153,7 +156,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const { data: existingRole } = await supabase
       .from('roles')
       .select('tenant_id, is_system')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (!existingRole) {
@@ -178,7 +181,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     const { count } = await supabase
       .from('user_tenants')
       .select('*', { count: 'exact', head: true })
-      .eq('role_id', params.id)
+      .eq('role_id', id)
       .eq('is_active', true)
 
     if (count && count > 0) {
@@ -189,7 +192,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
 
     // Delete the role
-    const { error } = await supabase.from('roles').delete().eq('id', params.id)
+    const { error } = await supabase.from('roles').delete().eq('id', id)
 
     if (error) throw error
 

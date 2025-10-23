@@ -63,7 +63,7 @@ export async function verifyToken(token: string): Promise<AccessTokenPayload> {
       issuer: ISSUER,
     })
     
-    return payload as AccessTokenPayload
+    return payload as unknown as AccessTokenPayload
   } catch (error) {
     throw new Error('Invalid or expired token')
   }

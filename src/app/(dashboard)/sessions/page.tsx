@@ -19,7 +19,8 @@ export default async function SessionsPage() {
   const sessions = await getUserActiveSessions(user.id)
 
   // Get current session token
-  const currentSessionToken = (await import('next/headers')).cookies().get('sso_session_token')?.value
+  const cookieStore = await (await import('next/headers')).cookies()
+  const currentSessionToken = (await cookieStore).get('sso_session_token')?.value
 
   return (
     <div className="space-y-6">

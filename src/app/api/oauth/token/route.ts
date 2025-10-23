@@ -21,7 +21,8 @@ import {
   revokeRefreshToken,
   getUserInfoWithTenant,
 } from '@/lib/oauth/adapter'
-import { connectApp, getSSOSession, getClientIP } from '@/lib/sso/adapter'
+import { connectApp, getSSOSession } from '@/lib/sso/adapter'
+import { getClientIP } from '@/lib/sso/utils'
 import type { TokenResponse } from '@/types/oauth.types'
 
 // POST /api/oauth/token
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Handle authorization code grant
     if (grant_type === 'authorization_code') {
-      return handleAuthorizationCodeGrant(body, client)
+      return handleAuthorizationCodeGrant(body, client, request)
     }
 
     // Handle refresh token grant
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle authorization_code grant
-async function handleAuthorizationCodeGrant(body: any, client: any) {
+async function handleAuthorizationCodeGrant(body: any, client: any, request: NextRequest) {
   const { code, redirect_uri, code_verifier } = body
 
   // Retrieve authorization code
@@ -186,7 +187,8 @@ async function handleAuthorizationCodeGrant(body: any, client: any) {
   await deleteAuthorizationCode(code)
 
   // Track connected app in SSO session (if session cookie exists)
-  const sessionCookie = body.session_token || request.cookies.get('sso_session_token')?.value
+  const cookieStore = await request.cookies
+  const sessionCookie = body.session_token || (await cookieStore).get('sso_session_token')?.value
   if (sessionCookie) {
     try {
       await connectApp(
@@ -204,16 +206,16 @@ async function handleAuthorizationCodeGrant(body: any, client: any) {
   // Generate ID token if openid scope is requested
   let idToken: string | undefined
   const scopes = parseScopes(authCode.scope)
-  if (scopes.includes('openid')) {
+  if (scopes.includes('openid') && userInfo.user) {
     idToken = await generateIDToken({
       sub: userInfo.user.id,
       aud: client.client_id,
-      email: userInfo.user.email,
+      email: userInfo.user.email || undefined,
       email_verified: userInfo.user.email_confirmed_at ? true : false,
-      name: userInfo.profile.full_name || undefined,
-      picture: userInfo.profile.avatar_url || undefined,
+      name: userInfo.profile?.full_name || undefined,
+      picture: userInfo.profile?.avatar_url || undefined,
       tenant_id: authCode.tenant_id,
-      tenant_name: userInfo.tenant.name,
+      tenant_name: userInfo.tenant?.name || '',
       role: userInfo.role?.name,
     }, client.token_expiration)
   }
@@ -309,16 +311,16 @@ async function handleRefreshTokenGrant(body: any, client: any) {
   // Generate new ID token if openid scope was requested
   let idToken: string | undefined
   const scopes = parseScopes(originalToken.scope)
-  if (scopes.includes('openid')) {
+  if (scopes.includes('openid') && userInfo.user) {
     idToken = await generateIDToken({
       sub: userInfo.user.id,
       aud: client.client_id,
-      email: userInfo.user.email,
+      email: userInfo.user.email || undefined,
       email_verified: userInfo.user.email_confirmed_at ? true : false,
-      name: userInfo.profile.full_name || undefined,
-      picture: userInfo.profile.avatar_url || undefined,
+      name: userInfo.profile?.full_name || undefined,
+      picture: userInfo.profile?.avatar_url || undefined,
       tenant_id: originalToken.tenant_id,
-      tenant_name: userInfo.tenant.name,
+      tenant_name: userInfo.tenant?.name || '',
       role: userInfo.role?.name,
     }, client.token_expiration)
   }
