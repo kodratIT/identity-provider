@@ -33,6 +33,17 @@ export default function LoginPage() {
 
       if (error) throw error
 
+      // Create SSO session
+      const sessionResponse = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remember_me: rememberMe }),
+      })
+
+      if (!sessionResponse.ok) {
+        console.warn('Failed to create SSO session:', await sessionResponse.text())
+      }
+
       router.push('/dashboard')
       router.refresh()
     } catch (error: any) {
