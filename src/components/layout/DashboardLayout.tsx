@@ -15,6 +15,8 @@ import {
   LogOut,
   User,
   FileText,
+  Key,
+  Monitor,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -38,6 +40,8 @@ const navigation: NavItem[] = [
   { title: 'Users', href: '/users', icon: Users },
   { title: 'Tenants', href: '/tenants', icon: Building2 },
   { title: 'Roles & Permissions', href: '/roles', icon: Shield },
+  { title: 'Applications', href: '/applications', icon: Key },
+  { title: 'Sessions', href: '/sessions', icon: Monitor },
   { title: 'Audit Logs', href: '/audit-logs', icon: FileText },
   { title: 'Profile', href: '/profile', icon: User },
   { title: 'Settings', href: '/settings', icon: Settings },
