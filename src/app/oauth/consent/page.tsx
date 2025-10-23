@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 interface ConsentPageProps {
-  searchParams: {
+  searchParams: Promise<{
     client_id: string
     redirect_uri: string
     scope: string
@@ -16,10 +16,11 @@ interface ConsentPageProps {
     code_challenge?: string
     code_challenge_method?: string
     tenant_id: string
-  }
+  }>
 }
 
 export default async function ConsentPage({ searchParams }: ConsentPageProps) {
+  const params = await searchParams
   const {
     client_id,
     redirect_uri,
@@ -28,7 +29,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     code_challenge,
     code_challenge_method,
     tenant_id,
-  } = searchParams
+  } = params
 
   // Check authentication
   const supabase = await createClient()

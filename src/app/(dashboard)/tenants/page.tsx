@@ -46,31 +46,17 @@ export default function TenantsPage() {
 
   async function loadTenants() {
       try {
-        const { data, error } = await supabase
-          .from('tenants')
-          .select('*')
-          .order('created_at', { ascending: false })
+        // Fetch tenants from API endpoint (includes user counts)
+        const response = await fetch('/api/tenants')
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to fetch tenants')
+        }
 
-        if (error) throw error
-
-        // Get user counts for each tenant
-        const tenantsWithCounts = await Promise.all(
-          (data || []).map(async (tenant) => {
-            const { count } = await supabase
-              .from('user_tenants')
-              .select('*', { count: 'exact', head: true })
-              .eq('tenant_id', tenant.id)
-              .eq('is_active', true)
-
-            return {
-              ...tenant,
-              user_count: count || 0,
-            }
-          })
-        )
-
-        setTenants(tenantsWithCounts)
-      } catch (error) {
+        const data = await response.json()
+        setTenants(data)
+      } catch (error: any) {
         console.error('Error loading tenants:', error)
       } finally {
         setLoading(false)

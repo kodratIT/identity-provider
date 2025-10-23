@@ -16,17 +16,60 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get tenants - user can only see tenants they belong to
-    const { data: tenants, error } = await supabase
+    // Get user's tenants (tenants they belong to)
+    const { data: userTenants, error: userTenantsError } = await supabase
+      .from('user_tenants')
+      .select('tenant_id, roles(name)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (userTenantsError) {
+      throw userTenantsError
+    }
+
+    const tenantIds = userTenants.map((ut: any) => ut.tenant_id)
+    const isSuperAdmin = userTenants.some((ut: any) => {
+      const roles = ut.roles as any
+      const roleName = Array.isArray(roles) ? roles[0]?.name : roles?.name
+      return roleName === 'super_admin'
+    })
+
+    // If super admin, fetch all tenants; otherwise only user's tenants
+    let query = supabase
       .from('tenants')
       .select('*')
       .order('created_at', { ascending: false })
+
+    if (!isSuperAdmin && tenantIds.length > 0) {
+      query = query.in('id', tenantIds)
+    } else if (!isSuperAdmin) {
+      // User has no tenants
+      return NextResponse.json([])
+    }
+
+    const { data: tenants, error } = await query
 
     if (error) {
       throw error
     }
 
-    return NextResponse.json(tenants)
+    // Get user counts for each tenant
+    const tenantsWithCounts = await Promise.all(
+      (tenants || []).map(async (tenant) => {
+        const { count } = await supabase
+          .from('user_tenants')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenant.id)
+          .eq('is_active', true)
+
+        return {
+          ...tenant,
+          user_count: count || 0,
+        }
+      })
+    )
+
+    return NextResponse.json(tenantsWithCounts)
   } catch (error: any) {
     console.error('Error fetching tenants:', error)
     return NextResponse.json(
